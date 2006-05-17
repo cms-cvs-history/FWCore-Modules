@@ -3,6 +3,6 @@
  <lib name=boost_program_options-gcc-mt>
  <use name=rootcore>
  <use name=DataFormats/Common>
- <use name=PhysicsTools/FWLite>
+ <use name=FWCore/FWLite>
 </bin>
 

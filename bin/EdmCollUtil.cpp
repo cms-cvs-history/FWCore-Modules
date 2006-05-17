@@ -14,7 +14,7 @@
 #include <vector>
 #include <boost/program_options.hpp>
 #include "FWCore/Modules/bin/CollUtil.h"
-#include "PhysicsTools/FWLite/src/AutoLibraryLoader.h"
+#include "FWCore/FWLite/src/AutoLibraryLoader.h"
 #include "TFile.h"
 #include "TUUID.h"
 
