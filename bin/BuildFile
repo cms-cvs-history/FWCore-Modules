@@ -1,6 +1,6 @@
 <bin name=EdmCollUtil file=EdmCollUtil.cpp,CollUtil.cc>
  <use name=boost>
- <lib name=boost_program_options-gcc-mt>
+ <use name=boost_program_options>
  <use name=rootcore>
  <use name=DataFormats/Common>
  <use name=FWCore/FWLite>
