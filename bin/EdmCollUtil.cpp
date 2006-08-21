@@ -14,7 +14,18 @@
 #include <vector>
 #include <boost/program_options.hpp>
 #include "FWCore/Modules/bin/CollUtil.h"
+#include "DataFormats/Common/interface/ParameterSetBlob.h"
 #include "FWCore/FWLite/src/AutoLibraryLoader.h"
+#include "FWCore/ParameterSet/interface/ParameterSet.h"
+#include "FWCore/Framework/interface/FileCatalog.h"
+#include "IOPool/Common/interface/PoolDataSvc.h"
+#include "Cintex/Cintex.h"
+#include "FWCore/Utilities/interface/Exception.h"
+#include "FWCore/Utilities/interface/ProblemTracker.h"
+#include "FWCore/Utilities/interface/Presence.h"
+#include "FWCore/Utilities/interface/PresenceFactory.h"
+#include "FWCore/ServiceRegistry/interface/ServiceRegistry.h"
+
 #include "TFile.h"
 #include "TUUID.h"
 
@@ -25,7 +36,8 @@ int main(int argc, char* argv[]) {
   boost::program_options::options_description desc("Allowed options");
   desc.add_options()
     ("help,h", "print help message")
-    ("file,f", boost::program_options::value<std::string>(), "data file (Required)")
+    ("file,f", boost::program_options::value<std::vector<std::string> >(), "data file (Required)")
+    ("catalog,c", boost::program_options::value<std::string>(), "catalog")
     ("ls,l", "list file content")
     ("print,P", "Print all")
     ("uuid,u", "Print uuid")
@@ -37,7 +49,7 @@ int main(int argc, char* argv[]) {
   // What trees do we require for this to be a valid collection?
   std::vector<std::string> expectedTrees;
   expectedTrees.push_back("MetaData");
-  expectedTrees.push_back("ParameterSets");
+  expectedTrees.push_back("##Params");
   expectedTrees.push_back("Events");
 
 
@@ -65,106 +77,167 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  std::string datafile = vm["file"].as<std::string>(); 
+  //dl  std::string datafile = vm["file"].as<std::string>(); 
 
   AutoLibraryLoader::enable();
 
-  // open a data file
-  TFile *tfile= edm::openFileHdl(datafile);
-  if ( tfile == 0 ) return 1;
-  if ( verbose ) std::cout << "ECU:: Opened " << datafile << std::endl;
+  int rc = 0;
+  try {
+    std::string config =
+      "process EdmFastMerge = {";
+    config += "service = SiteLocalConfigService{}"
+      "}";
 
-  // First check that this file is not auto-recovered
-  // Stop the job unless specified to do otherwise
+    //create the services
+    edm::ServiceToken tempToken = edm::ServiceRegistry::createServicesFromConfig(config);
 
-  bool isRecovered = tfile->TestBit(TFile::kRecovered);
-  if ( isRecovered ) {
-    std::cout << datafile << " appears not to have been closed correctly and has been autorecovered \n";
-    if ( vm.count("allowRecovery") ) {
-      std::cout << "Proceeding anyway\n";
-    }
-    else{
-      std::cout << "Stopping. Use --allowRecovery to try ignoring this\n";
-      return 1;
-    }
-  }
-  else{
-    if ( verbose ) std::cout << "ECU:: Collection not autorecovered. Continuing\n";
-  }
+    //make the services available
+    edm::ServiceRegistry::Operate operate(tempToken);
 
-  // Ok. Do we have the expected trees?
-  for ( unsigned int i=0; i<expectedTrees.size(); i++) {
-    TTree *t= (TTree*) tfile->Get(expectedTrees[i].c_str());
-    if ( t==0 ) {
-      std::cout << "Tree " << expectedTrees[i] << " appears to be missing. Not a valid collection\n";
-      std::cout << "Exiting\n";
-      return 1;
-    }
-    else{
-      if ( verbose ) std::cout << "ECU:: Found Tree " << expectedTrees[i] << std::endl;
-    }
-  }
-
-  if ( verbose ) std::cout << "ECU:: Found all expected trees\n"; 
-
-  // Ok. How many events?
-  long int nevts= edm::numEntries(tfile,"Events");
-  std::cout << tfile->GetName() << " ( " << nevts << " events, " 
-	    << tfile->GetSize() << " bytes )" << std::endl;
-
-  // Look at the collection contents
-  if ( vm.count("ls")) {
-    if ( tfile ) tfile->ls();
-  }
-
-  // Print out each tree
-  if ( vm.count("print") ) {
-    edm::printTrees(tfile);
-  }
-  
-  if ( vm.count("uuid") ) {
-    TUUID uuid=tfile->GetUUID();
-    std::cout << "TFile UUID: ";
-    uuid.Print();
-  }
-
-  // Print out event lists 
-  if ( vm.count("events") ) {
-    bool keepgoing=true;  
-    std::string remainingStr=vm["events"].as<std::string>();
-    while ( keepgoing ) {
-      long int iLow(-1),iHigh(-2);
-      // split by commas
-      std::string::size_type pos= remainingStr.find_first_of(",");
-      std::string evtstr=remainingStr;
-
-      if ( pos == std::string::npos ) {
-	keepgoing=false;
+    // now run..
+    edm::ParameterSet pset;
+    std::vector<std::string> in = vm["file"].as<std::vector<std::string> >();
+    std::string catalogIn = (vm.count("catalog") ? vm["catalog"].as<std::string>() : std::string());
+    
+    std::cout << in[0] << "\n"; 
+    pset.addUntrackedParameter<std::vector<std::string> >("fileNames", in);
+    pset.addUntrackedParameter<std::string>("catalog", catalogIn);
+    
+    edm::InputFileCatalog catalog(pset);
+    std::vector<std::string> const& filesIn = catalog.fileNames();
+    
+    // open a data file
+    std::string datafile=filesIn[0];
+    TFile *tfile= edm::openFileHdl(datafile);
+    
+    
+    
+    if ( tfile == 0 ) return 1;
+    if ( verbose ) std::cout << "ECU:: Opened " << datafile << std::endl;
+    
+    // First check that this file is not auto-recovered
+    // Stop the job unless specified to do otherwise
+    
+    bool isRecovered = tfile->TestBit(TFile::kRecovered);
+    if ( isRecovered ) {
+      std::cout << datafile << " appears not to have been closed correctly and has been autorecovered \n";
+      if ( vm.count("allowRecovery") ) {
+	std::cout << "Proceeding anyway\n";
       }
       else{
-	evtstr=remainingStr.substr(0,pos);
-	remainingStr=remainingStr.substr(pos+1);
+	std::cout << "Stopping. Use --allowRecovery to try ignoring this\n";
+	return 1;
       }
-      
-      pos= evtstr.find_first_of("-");
-      if ( pos == std::string::npos ) {
-	iLow= (int)atof(evtstr.c_str());
-	iHigh= iLow;
-      } else {
-	iLow= (int)atof(evtstr.substr(0,pos).c_str());
-	iHigh= (int)atof(evtstr.substr(pos+1).c_str());
-      }
-      
-      //    edm::showEvents(tfile,"Events",vm["events"].as<std::string>());
-      if ( iLow < 1 ) iLow=1;
-      if ( iHigh > nevts ) iHigh=nevts;
-      
-      // shift by one.. C++ starts at 0
-      iLow--;
-      iHigh--;
-      edm::showEvents(tfile,"Events",iLow,iHigh);
     }
+    else{
+      if ( verbose ) std::cout << "ECU:: Collection not autorecovered. Continuing\n";
+    }
+    
+    // Ok. Do we have the expected trees?
+    for ( unsigned int i=0; i<expectedTrees.size(); i++) {
+      TTree *t= (TTree*) tfile->Get(expectedTrees[i].c_str());
+      if ( t==0 ) {
+	std::cout << "Tree " << expectedTrees[i] << " appears to be missing. Not a valid collection\n";
+	std::cout << "Exiting\n";
+	return 1;
+      }
+      else{
+	if ( verbose ) std::cout << "ECU:: Found Tree " << expectedTrees[i] << std::endl;
+      }
+    }
+    
+    if ( verbose ) std::cout << "ECU:: Found all expected trees\n"; 
+    
+    // Ok. How many events?
+    long int nevts= edm::numEntries(tfile,"Events");
+    std::cout << tfile->GetName() << " ( " << nevts << " events, " 
+	      << tfile->GetSize() << " bytes )" << std::endl;
+    
+    // Look at the collection contents
+    if ( vm.count("ls")) {
+      if ( tfile ) tfile->ls();
+    }
+    
+    // Print out each tree
+    if ( vm.count("print") ) {
+      edm::printTrees(tfile);
+    }
+    
+    if ( vm.count("uuid") ) {
+      TUUID uuid=tfile->GetUUID();
+      std::cout << "TFile UUID: ";
+      uuid.Print();
+    }
+    
+    // Print out event lists 
+    if ( vm.count("events") ) {
+      bool keepgoing=true;  
+      std::string remainingStr=vm["events"].as<std::string>();
+      while ( keepgoing ) {
+	long int iLow(-1),iHigh(-2);
+	// split by commas
+	std::string::size_type pos= remainingStr.find_first_of(",");
+	std::string evtstr=remainingStr;
+	
+	if ( pos == std::string::npos ) {
+	  keepgoing=false;
+	}
+	else{
+	  evtstr=remainingStr.substr(0,pos);
+	  remainingStr=remainingStr.substr(pos+1);
+	}
+	
+	pos= evtstr.find_first_of("-");
+	if ( pos == std::string::npos ) {
+	  iLow= (int)atof(evtstr.c_str());
+	  iHigh= iLow;
+	} else {
+	  iLow= (int)atof(evtstr.substr(0,pos).c_str());
+	  iHigh= (int)atof(evtstr.substr(pos+1).c_str());
+	}
+	
+	//    edm::showEvents(tfile,"Events",vm["events"].as<std::string>());
+	if ( iLow < 1 ) iLow=1;
+	if ( iHigh > nevts ) iHigh=nevts;
+	
+	// shift by one.. C++ starts at 0
+	iLow--;
+	iHigh--;
+	edm::showEvents(tfile,"Events",iLow,iHigh);
+      }
+    }
+    
   }
+  catch (cms::Exception& e) {
+    std::cout << "cms::Exception caught in "
+              <<"EdmCollUtil"
+              << '\n'
+              << e.explainSelf();
+    rc = 1;
+  }
+  catch (seal::Error& e) {
+    std::cout << "Exception caught in "
+              << "EdmCollUtil"
+              << '\n'
+              << e.explainSelf();
+    rc = 1;
+  }
+  catch (std::exception& e) {
+    std::cout << "Standard library exception caught in "
+              << "EdmCollUtil"
+              << '\n'
+              << e.what();
+    rc = 1;
+  }
+  catch (...) {
+    std::cout << "Unknown exception caught in "
+              << "EdmCollUtil";
+    rc = 2;
+  }
+
+
+
+  
 
   return 0;
 

@@ -1,4 +1,5 @@
 #include "FWCore/Modules/bin/CollUtil.h"
+#include "DataFormats/Common/interface/EventAux.h"
 #include "DataFormats/Common/interface/EventID.h"
 #include "DataFormats/Common/interface/Timestamp.h"
 
@@ -60,21 +61,19 @@ namespace edm {
   void showEvents(TFile *hdl, const std::string& trname, const long iLow, const long iHigh) {
 
     TTree *tree= (TTree*)hdl->Get(trname.c_str());
-    if ( tree ) {
 
-      EventID id_;
-      Timestamp time_;
-      TBranch *b_id_= tree->GetBranch("id_");
-      TBranch *b_time_= tree->GetBranch("time_");
-      tree->SetBranchAddress("id_",&id_);
-      tree->SetBranchAddress("time_",&time_);
+    if ( tree != 0 ) {
+
+      EventAux* evtAux_;
+      TBranch *evtAuxBr = tree->GetBranch("EventAux");
+
+      tree->SetBranchAddress("EventAux",&evtAux_);
       long int max= tree->GetEntries()-1;
       for (long int i=iLow; i<= iHigh && i<= max; i++) {
-	b_id_->GetEntry(i);
-	b_time_->GetEntry(i);
-	
+	evtAuxBr->GetEntry(i);
+	Timestamp time_=evtAux_->time();
+	EventID id_=evtAux_->id();
 	std::cout << id_ << "  time: " << time_.value() << std::endl;
-
       }
       
     } else {
