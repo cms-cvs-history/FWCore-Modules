@@ -1,6 +1,8 @@
 //----------------------------------------------------------------------
 // EdmCollUtil.cpp
 //
+// $Id:$
+//
 // Author: Chih-hsiang Cheng, LLNL
 //         Chih-Hsiang.Cheng@cern.ch
 //
@@ -27,7 +29,6 @@
 #include "FWCore/ServiceRegistry/interface/ServiceRegistry.h"
 
 #include "TFile.h"
-#include "TUUID.h"
 
 int main(int argc, char* argv[]) {
 
@@ -162,11 +163,20 @@ int main(int argc, char* argv[]) {
     if ( vm.count("print") ) {
       edm::printTrees(tfile);
     }
-    
+
+
+// The following bit should be replaced by some variation of the following
+// root <filename>
+// root[0] TTree *p = _file0.Get("##Params")
+// root[1] p->Show(0)
+// ======> EVENT:0
+//  db_string       = [NAME=FID][VALUE=082822CD-4E2D-DB11-A1A1-003048810478]
+//
     if ( vm.count("uuid") ) {
-      TUUID uuid=tfile->GetUUID();
-      std::cout << "TFile UUID: ";
-      uuid.Print();
+//      TUUID uuid=tfile->GetUUID();
+//      std::cout << "TFile UUID: ";
+//      uuid.Print();
+      std::cout << "The FileID/UUID/GUID is not yet available." << std::endl;  
     }
     
     // Print out event lists 
