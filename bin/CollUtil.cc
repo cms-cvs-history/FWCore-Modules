@@ -61,19 +61,24 @@ namespace edm {
   void showEvents(TFile *hdl, const std::string& trname, const long iLow, const long iHigh) {
 
     TTree *tree= (TTree*)hdl->Get(trname.c_str());
-
+    
     if ( tree != 0 ) {
 
-      EventAux* evtAux_;
+      EventAux* evtAux_=0;
       TBranch *evtAuxBr = tree->GetBranch("EventAux");
 
       tree->SetBranchAddress("EventAux",&evtAux_);
-      long int max= tree->GetEntries()-1;
-      for (long int i=iLow; i<= iHigh && i<= max; i++) {
+      long int max= tree->GetEntries();
+      for (long int i=iLow; i<= iHigh && i< max; i++) {
 	evtAuxBr->GetEntry(i);
-	Timestamp time_=evtAux_->time();
-	EventID id_=evtAux_->id();
-	std::cout << id_ << "  time: " << time_.value() << std::endl;
+	if ( evtAux_ != 0 ) {
+	  Timestamp time_=evtAux_->time();
+	  EventID id_=evtAux_->id();
+	  std::cout << id_ << "  time: " << time_.value() << std::endl;
+	}
+	else{
+	  std::cout << "Event: " << i << " Nonsense EventAux object? " << std::endl;
+	}
       }
       
     } else {

@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------
 // EdmCollUtil.cpp
 //
-// $Id:$
+// $Id: EdmCollUtil.cpp,v 1.5 2006/08/24 19:27:17 elmer Exp $
 //
 // Author: Chih-hsiang Cheng, LLNL
 //         Chih-Hsiang.Cheng@cern.ch
@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
   int rc = 0;
   try {
     std::string config =
-      "process EdmFastMerge = {";
+      "process EdmCollUtil = {";
     config += "service = SiteLocalConfigService{}"
       "}";
 
@@ -156,7 +156,7 @@ int main(int argc, char* argv[]) {
     
     // Look at the collection contents
     if ( vm.count("ls")) {
-      if ( tfile ) tfile->ls();
+      if ( tfile != 0 ) tfile->ls();
     }
     
     // Print out each tree
@@ -164,19 +164,35 @@ int main(int argc, char* argv[]) {
       edm::printTrees(tfile);
     }
 
-
-// The following bit should be replaced by some variation of the following
-// root <filename>
-// root[0] TTree *p = _file0.Get("##Params")
-// root[1] p->Show(0)
-// ======> EVENT:0
-//  db_string       = [NAME=FID][VALUE=082822CD-4E2D-DB11-A1A1-003048810478]
-//
     if ( vm.count("uuid") ) {
-//      TUUID uuid=tfile->GetUUID();
-//      std::cout << "TFile UUID: ";
-//      uuid.Print();
-      std::cout << "The FileID/UUID/GUID is not yet available." << std::endl;  
+      TTree *paramsTree=(TTree*)tfile->Get("##Params");
+
+      char uuidCA[1024];
+      paramsTree->SetBranchAddress("db_string",uuidCA);
+      paramsTree->GetEntry(0);
+
+      // Then pick out relevent piece of this string
+      // 9A440868-8058-DB11-85E3-00304885AB94 from
+      // [NAME=FID][VALUE=9A440868-8058-DB11-85E3-00304885AB94]
+
+      std::string uuidStr(uuidCA);
+      std::string::size_type start=uuidStr.find("VALUE=");
+      if ( start == std::string::npos ) {
+	std::cout << "Seemingly invalid db_string entry in ##Params tree?\n";
+	std::cout << uuidStr << std::endl;
+      }
+      else{
+	std::string::size_type stop=uuidStr.find("]",start);
+	if ( stop == std::string::npos ) {
+	  std::cout << "Seemingly invalid db_string entry in ##Params tree?\n";
+	  std::cout << uuidStr << std::endl;
+	}
+	else{
+	  //Everything is Ok - just proceed...
+	  std::string result=uuidStr.substr(start+6,stop-start-6);
+	  std::cout << "UUID: " << result << std::endl;
+	}
+      }
     }
     
     // Print out event lists 
