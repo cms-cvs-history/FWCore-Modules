@@ -8,7 +8,7 @@
 //
 // Original Author:  Chris Jones
 //         Created:  Thu Sep 11 19:24:13 EDT 2008
-// $Id: ProvenanceCheckerOutputModule.cc,v 1.1 2008/09/16 18:12:26 chrjones Exp $
+// $Id: ProvenanceCheckerOutputModule.cc,v 1.1.2.1 2008/11/13 05:44:14 wmtan Exp $
 //
 
 // system include files
@@ -81,8 +81,8 @@ namespace edm {
                              const BranchMapper& iMapper,
                              std::map<BranchID,bool>& oMap, 
                              std::set<BranchID>& oMapperMissing) {
-      for(std::vector<BranchID>::const_iterator it = iInfo.entryDescription().parents().begin(),
-          itEnd = iInfo.entryDescription().parents().end();
+      for(std::vector<BranchID>::const_iterator it = iInfo.parentage().parents().begin(),
+          itEnd = iInfo.parentage().parents().end();
           it != itEnd;
           ++it) {
          //Don't look for parents if we've previously looked at the parents
