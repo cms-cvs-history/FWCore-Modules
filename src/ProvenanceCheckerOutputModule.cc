@@ -8,7 +8,7 @@
 //
 // Original Author:  Chris Jones
 //         Created:  Thu Sep 11 19:24:13 EDT 2008
-// $Id: ProvenanceCheckerOutputModule.cc,v 1.1.2.1 2008/11/13 05:44:14 wmtan Exp $
+// $Id: ProvenanceCheckerOutputModule.cc,v 1.1.2.2 2008/11/20 20:32:08 wmtan Exp $
 //
 
 // system include files
@@ -113,7 +113,7 @@ namespace edm {
           ++it) {
          if(it->second && !it->second->productUnavailable()) {
             //This call seems to have a side effect of filling the 'ProductProvenance' in the Group
-            OutputHandle<ProductProvenance> const oh = e.getForOutput<ProductProvenance>(it->first, false);
+            OutputHandle const oh = e.getForOutput(it->first, false);
 
             if(not it->second->productProvenancePtr().get() ) {
                missingProductProvenance.insert(it->first);
