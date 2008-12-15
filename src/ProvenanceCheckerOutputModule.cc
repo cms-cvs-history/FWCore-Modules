@@ -8,7 +8,7 @@
 //
 // Original Author:  Chris Jones
 //         Created:  Thu Sep 11 19:24:13 EDT 2008
-// $Id: ProvenanceCheckerOutputModule.cc,v 1.1.2.2 2008/11/20 20:32:08 wmtan Exp $
+// $Id: ProvenanceCheckerOutputModule.cc,v 1.1.2.3 2008/12/09 23:04:17 wmtan Exp $
 //
 
 // system include files
@@ -89,7 +89,7 @@ namespace edm {
          if(oMap.find(*it) == oMap.end()) {
             //use side effect of calling operator[] which is if the item isn't there it will add it as 'false'
             oMap[*it];
-            boost::shared_ptr<ProductProvenance> pInfo = iMapper.branchToEntryInfo(*it);
+            boost::shared_ptr<ProductProvenance> pInfo = iMapper.branchIDToProvenance(*it);
             if(pInfo.get()) {
                markAncestors(*pInfo,iMapper,oMap,oMapperMissing);
             } else {
@@ -119,7 +119,7 @@ namespace edm {
                missingProductProvenance.insert(it->first);
                continue;
             }
-            boost::shared_ptr<ProductProvenance> pInfo = mapperPtr->branchToEntryInfo(it->first);
+            boost::shared_ptr<ProductProvenance> pInfo = mapperPtr->branchIDToProvenance(it->first);
             if(!pInfo.get()) {
                missingFromMapper.insert(it->first);
             }
