@@ -8,7 +8,6 @@
 //
 // Original Author:  Chris Jones
 //         Created:  Thu Sep 11 19:24:13 EDT 2008
-// $Id: ProvenanceCheckerOutputModule.cc,v 1.1.2.3 2008/12/09 23:04:17 wmtan Exp $
 //
 
 // system include files
