@@ -8,6 +8,7 @@
 //
 // Original Author:  Chris Jones
 //         Created:  Fri Aug  4 20:45:44 EDT 2006
+// $Id: XMLOutputModule.cc,v 1.10 2007/09/13 20:16:26 paterno Exp $
 //
 
 // system include files
@@ -89,28 +90,28 @@ static std::string const& typeidToName(std::type_info const& iID)
 }
 
 template<typename T>
-static void doPrint(std::ostream& oStream, std::string const& iPrefix, std::string const& iPostfix, Reflex::Object const& iObject, std::string const& iIndent) {
+static void doPrint(std::ostream& oStream, std::string const& iPrefix, std::string const& iPostfix, ROOT::Reflex::Object const& iObject, std::string const& iIndent) {
   oStream << iIndent<<iPrefix <<typeidToName(typeid(T))<<kNameValueSep<<*reinterpret_cast<T*>(iObject.Address())<<iPostfix<<"\n";
 }
 
 template<>
-static void doPrint<char>(std::ostream& oStream, std::string const& iPrefix, std::string const& iPostfix, Reflex::Object const& iObject, std::string const& iIndent) {
+static void doPrint<char>(std::ostream& oStream, std::string const& iPrefix, std::string const& iPostfix, ROOT::Reflex::Object const& iObject, std::string const& iIndent) {
   oStream << iIndent<< iPrefix<<"char"<<kNameValueSep<<static_cast<int>(*reinterpret_cast<char*>(iObject.Address()))<<iPostfix<<"\n";
 }
 
 template<>
-static void doPrint<unsigned char>(std::ostream& oStream, std::string const& iPrefix, std::string const& iPostfix, Reflex::Object const& iObject, std::string const& iIndent) {
+static void doPrint<unsigned char>(std::ostream& oStream, std::string const& iPrefix, std::string const& iPostfix, ROOT::Reflex::Object const& iObject, std::string const& iIndent) {
   oStream << iIndent<< iPrefix<< "unsigned char" <<kNameValueSep<<static_cast<unsigned int>(*reinterpret_cast<unsigned char*>(iObject.Address()))<<iPostfix<<"\n";
 }
 
 template<>
-static void doPrint<bool>(std::ostream& oStream, std::string const& iPrefix, std::string const& iPostfix,Reflex::Object const& iObject, std::string const& iIndent) {
+static void doPrint<bool>(std::ostream& oStream, std::string const& iPrefix, std::string const& iPostfix,ROOT::Reflex::Object const& iObject, std::string const& iIndent) {
   oStream << iIndent<< iPrefix << "bool" <<kNameValueSep<<((*reinterpret_cast<bool*>(iObject.Address()))?"true":"false")<<iPostfix<<"\n";
 }
 
 
 typedef void(*FunctionType)(std::ostream&, std::string const&, 
-                            std::string const&, Reflex::Object const&, std::string const&);
+                            std::string const&, ROOT::Reflex::Object const&, std::string const&);
 typedef std::map<std::string, FunctionType> TypeToPrintMap;
 
 template<typename T>
@@ -121,9 +122,9 @@ static void addToMap(TypeToPrintMap& iMap){
 static bool printAsBuiltin(std::ostream& oStream,
                            std::string const& iPrefix,
                            std::string const& iPostfix,
-                           Reflex::Object const iObject,
+                           ROOT::Reflex::Object const iObject,
                            std::string const& iIndent){
-  typedef void(*FunctionType)(std::ostream&, std::string const&, std::string const&, Reflex::Object const&, std::string const&);
+  typedef void(*FunctionType)(std::ostream&, std::string const&, std::string const&, ROOT::Reflex::Object const&, std::string const&);
   typedef std::map<std::string, FunctionType> TypeToPrintMap;
   static TypeToPrintMap s_map;
   static bool isFirst = true;
@@ -153,39 +154,40 @@ static bool printAsBuiltin(std::ostream& oStream,
 static bool printAsContainer(std::ostream& oStream,
                              std::string const& iPrefix,
                              std::string const& iPostfix,
-                             Reflex::Object const& iObject,
+                             ROOT::Reflex::Object const& iObject,
                              std::string const& iIndent,
                              std::string const& iIndentDelta);
 
 static void printDataMembers(std::ostream& oStream,
-                             Reflex::Object const& iObject,
-                             Reflex::Type const& iType,
+                             ROOT::Reflex::Object const& iObject,
+                             ROOT::Reflex::Type const& iType,
                              std::string const& iIndent,
                              std::string const& iIndentDelta);
 
 static void printObject(std::ostream& oStream,
                         std::string const& iPrefix,
                         std::string const& iPostfix,
-                        Reflex::Object const& iObject,
+                        ROOT::Reflex::Object const& iObject,
                         std::string const& iIndent,
                         std::string const& iIndentDelta) {
-  Reflex::Object objectToPrint = iObject;
+  using namespace ROOT::Reflex;
+  Object objectToPrint = iObject;
   std::string indent(iIndent);
   if(iObject.TypeOf().IsPointer()) {
-    oStream<<iIndent<<iPrefix<<formatXML(iObject.TypeOf().Name(Reflex::SCOPED))<<"\">\n";
+    oStream<<iIndent<<iPrefix<<formatXML(iObject.TypeOf().Name(SCOPED))<<"\">\n";
     indent +=iIndentDelta;
     int size = (0!=iObject.Address()) ? (0!=*reinterpret_cast<void**>(iObject.Address())?1:0) : 0;
     oStream<<indent<<kContainerOpen<<size<<"\">\n";
     if(size) {
       std::string indent2 = indent+iIndentDelta;
-      Reflex::Object obj(iObject.TypeOf().ToType(),*reinterpret_cast<void**>(iObject.Address()));
+      Object obj(iObject.TypeOf().ToType(),*reinterpret_cast<void**>(iObject.Address()));
       obj = obj.CastObject(obj.DynamicType());
       printObject(oStream,kObjectOpen,kObjectClose,obj,indent2,iIndentDelta);
     }
     oStream<<indent<<kContainerClose<<"\n";
     oStream<<iIndent<<iPostfix<<"\n";
-    Reflex::Type pointedType = iObject.TypeOf().ToType();
-    if(Reflex::Type::ByName("void") == pointedType ||
+    Type pointedType = iObject.TypeOf().ToType();
+    if(ROOT::Reflex::Type::ByName("void") == pointedType ||
        pointedType.IsPointer() ||
        iObject.Address()==0) {
       return;
@@ -193,25 +195,25 @@ static void printObject(std::ostream& oStream,
     return;
     
     //have the code that follows print the contents of the data to which the pointer points
-    objectToPrint = Reflex::Object(pointedType, iObject.Address());
+    objectToPrint = ROOT::Reflex::Object(pointedType, iObject.Address());
     //try to convert it to its actual type (assuming the original type was a base class)
-    objectToPrint = Reflex::Object(objectToPrint.CastObject(objectToPrint.DynamicType()));
+    objectToPrint = ROOT::Reflex::Object(objectToPrint.CastObject(objectToPrint.DynamicType()));
     indent +=iIndentDelta;
   }
-  std::string typeName(objectToPrint.TypeOf().Name(Reflex::SCOPED));
+  std::string typeName(objectToPrint.TypeOf().Name(SCOPED));
   if(typeName.empty()){
     typeName="{unknown}";
   }
   
   //see if we are dealing with a typedef
-  Reflex::Type objectType = objectToPrint.TypeOf();
+  ROOT::Reflex::Type objectType = objectToPrint.TypeOf();
   bool wasTypedef = false;
   while(objectType.IsTypedef()) {
      objectType = objectType.ToType();
      wasTypedef = true;
   }
   if(wasTypedef){
-     Reflex::Object tmp(objectType,objectToPrint.Address());
+     Object tmp(objectType,objectToPrint.Address());
      objectToPrint = tmp;
   } 
   if(printAsBuiltin(oStream,iPrefix,iPostfix,objectToPrint,indent)) {
@@ -228,13 +230,13 @@ static void printObject(std::ostream& oStream,
 }
 
 static void printDataMembers(std::ostream& oStream,
-                             Reflex::Object const& iObject,
-                             Reflex::Type const& iType,
+                             ROOT::Reflex::Object const& iObject,
+                             ROOT::Reflex::Type const& iType,
                              std::string const& iIndent,
                              std::string const& iIndentDelta)
 {
   //print all the base class data members
-  for(Reflex::Base_Iterator itBase = iType.Base_Begin();
+  for(ROOT::Reflex::Base_Iterator itBase = iType.Base_Begin();
       itBase != iType.Base_End();
       ++itBase) {
     printDataMembers(oStream, iObject.CastObject(itBase->ToType()), itBase->ToType(), iIndent, iIndentDelta); 
@@ -243,7 +245,7 @@ static void printDataMembers(std::ostream& oStream,
   static std::string const ktype("\" type=\"");
   static std::string const kPostfix("</datamember>");
   
-  for(Reflex::Member_Iterator itMember = iType.DataMember_Begin();
+  for(ROOT::Reflex::Member_Iterator itMember = iType.DataMember_Begin();
       itMember != iType.DataMember_End();
       ++itMember){
     //std::cout <<"     debug "<<itMember->Name()<<" "<<itMember->TypeOf().Name()<<"\n";
@@ -268,28 +270,29 @@ static void printDataMembers(std::ostream& oStream,
 static bool printContentsOfStdContainer(std::ostream& oStream,
                                         std::string const& iPrefix,
                                         std::string const& iPostfix,
-                                        Reflex::Object iBegin,
-                                        Reflex::Object const& iEnd,
+                                        ROOT::Reflex::Object iBegin,
+                                        ROOT::Reflex::Object const& iEnd,
                                         std::string const& iIndent,
                                         std::string const& iIndentDelta){
+  using namespace ROOT::Reflex;
   size_t size=0;
   std::ostringstream sStream;
   if( iBegin.TypeOf() != iEnd.TypeOf() ) {
-    std::cerr <<" begin (" << iBegin.TypeOf().Name(Reflex::SCOPED) <<") and end (" << iEnd.TypeOf().Name(Reflex::SCOPED) << ") are not the same type"<<std::endl;
+    std::cerr <<" begin (" << iBegin.TypeOf().Name(SCOPED) <<") and end (" << iEnd.TypeOf().Name(SCOPED) << ") are not the same type"<<std::endl;
     throw std::exception();
   }
   try {
-    Reflex::Member compare(iBegin.TypeOf().MemberByName("operator!="));
+    Member compare(iBegin.TypeOf().MemberByName("operator!="));
     if(!compare) {
       //std::cerr<<"no 'operator!=' for "<< iBegin.TypeOf().Name()<< std::endl;
       return false;
     }
-    Reflex::Member incr(iBegin.TypeOf().MemberByName("operator++"));
+    Member incr(iBegin.TypeOf().MemberByName("operator++"));
     if(!incr) {
       //std::cerr<<"no 'operator++' for "<< iBegin.TypeOf().Name()<<std::endl;
       return false;
     }
-    Reflex::Member deref(iBegin.TypeOf().MemberByName("operator*"));
+    Member deref(iBegin.TypeOf().MemberByName("operator*"));
     if(!deref) {
       //std::cerr<<"no 'operator*' for "<< iBegin.TypeOf().Name()<<std::endl;
       return false;
@@ -297,27 +300,13 @@ static bool printContentsOfStdContainer(std::ostream& oStream,
     
     std::string indexIndent = iIndent+iIndentDelta;
     int dummy=0;
-    //std::cerr<<"going to loop using iterator "<<iBegin.TypeOf().Name(Reflex::SCOPED)<<std::endl;
+    //std::cerr<<"going to loop using iterator "<<iBegin.TypeOf().Name(SCOPED)<<std::endl;
     
-#if ROOT_VERSION_CODE <= ROOT_VERSION(5,19,0)
-    for(;  *reinterpret_cast<bool*>(compare.Invoke(iBegin, Reflex::Tools::MakeVector((iEnd.Address()))).Address()); incr.Invoke(iBegin, Reflex::Tools::MakeVector(static_cast<void*>(&dummy))),++size) {
+    for(;  *reinterpret_cast<bool*>(compare.Invoke(iBegin, Tools::MakeVector((iEnd.Address()))).Address()); incr.Invoke(iBegin,Tools::MakeVector(static_cast<void*>(&dummy))),++size) {
       //std::cerr <<"going to print"<<std::endl;
       printObject(sStream,kObjectOpen,kObjectClose,deref.Invoke(iBegin),indexIndent,iIndentDelta);                  
       //std::cerr <<"printed"<<std::endl;
     }
-#else
-    Reflex::Object iCompare;
-    Reflex::Object iIncr;
-    for(;
-	 compare.Invoke(iBegin, &iCompare, Reflex::Tools::MakeVector((iEnd.Address()))), *reinterpret_cast<bool*>(iCompare.Address());
-	 incr.Invoke(iBegin, &iIncr, Reflex::Tools::MakeVector(static_cast<void*>(&dummy))), ++size) {
-      //std::cerr <<"going to print"<<std::endl;
-      Reflex::Object iTemp;
-      deref.Invoke(iBegin, &iTemp);
-      printObject(sStream,kObjectOpen,kObjectClose,iTemp,indexIndent,iIndentDelta);                  
-      //std::cerr <<"printed"<<std::endl;
-    }
-#endif
   } catch( std::exception const& iE) {
     std::cerr <<"while printing std container caught exception "<<iE.what()<<std::endl;
     return false;
@@ -332,41 +321,34 @@ static bool printContentsOfStdContainer(std::ostream& oStream,
 
 static bool printAsContainer(std::ostream& oStream,
                              std::string const& iPrefix, std::string const& iPostfix,
-                             Reflex::Object const& iObject,
+                             ROOT::Reflex::Object const& iObject,
                              std::string const& iIndent,
                              std::string const& iIndentDelta){
-  Reflex::Object sizeObj;
+  using namespace ROOT::Reflex;
+  Object sizeObj;
   try {
-#if ROOT_VERSION_CODE <= ROOT_VERSION(5,19,0)
     sizeObj = iObject.Invoke("size");
-#else
-    iObject.Invoke("size", &sizeObj);
-#endif
     
     if(sizeObj.TypeOf().TypeInfo() != typeid(size_t)) {
       throw std::exception();
     }
     size_t size = *reinterpret_cast<size_t*>(sizeObj.Address());
-    Reflex::Member atMember;
+    Member atMember;
     atMember = iObject.TypeOf().MemberByName("at");
     if(!atMember) {
       throw std::exception();
     }
-    std::string typeName(iObject.TypeOf().Name(Reflex::SCOPED));
+    std::string typeName(iObject.TypeOf().Name(SCOPED));
     if(typeName.empty()){
       typeName="{unknown}";
     }
     
     oStream <<iIndent<<iPrefix<<formatXML(typeName)<<"\">\n"
       <<iIndent<<kContainerOpen<<size<<"\">\n";
-    Reflex::Object contained;
+    Object contained;
     std::string indexIndent=iIndent+iIndentDelta;
     for(size_t index = 0; index != size; ++index) {
-#if ROOT_VERSION_CODE <= ROOT_VERSION(5,19,0)
-      contained = atMember.Invoke(iObject, Reflex::Tools::MakeVector(static_cast<void*>(&index)));
-#else
-      atMember.Invoke(iObject, &contained, Reflex::Tools::MakeVector(static_cast<void*>(&index)));
-#endif
+      contained = atMember.Invoke(iObject, Tools::MakeVector(static_cast<void*>(&index)));
       //std::cout <<"invoked 'at'"<<std::endl;
       try {
         printObject(oStream,kObjectOpen,kObjectClose,contained,indexIndent,iIndentDelta);
@@ -382,26 +364,15 @@ static bool printAsContainer(std::ostream& oStream,
     //std::cerr <<"failed to invoke 'at' because "<<x.what()<<std::endl;
     try {
       //oStream <<iIndent<<iPrefix<<formatXML(typeName)<<"\">\n";
-      std::string typeName(iObject.TypeOf().Name(Reflex::SCOPED));
+      std::string typeName(iObject.TypeOf().Name(SCOPED));
       if(typeName.empty()){
         typeName="{unknown}";
       }
-      Reflex::Object iObjBegin;
-      Reflex::Object iObjEnd;
-#if ROOT_VERSION_CODE > ROOT_VERSION(5,19,0)
-      iObject.Invoke("begin", &iObjBegin);
-      iObject.Invoke("end", &iObjEnd);
-#endif
       if( printContentsOfStdContainer(oStream,
                                       iIndent+iPrefix+formatXML(typeName)+"\">\n",
                                       iIndent+iPostfix,
-#if ROOT_VERSION_CODE <= ROOT_VERSION(5,19,0)
                                       iObject.Invoke("begin"),
                                       iObject.Invoke("end"),
-#else
-                                      iObjBegin,
-                                      iObjEnd,
-#endif
                                       iIndent,
                                       iIndentDelta) ) {
         if(typeName.empty()){
