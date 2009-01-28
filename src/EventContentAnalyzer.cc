@@ -12,6 +12,7 @@
 //
 // Original Author:  Chris Jones
 //         Created:  Mon Sep 19 11:47:28 CEST 2005
+// $Id: EventContentAnalyzer.cc,v 1.27 2008/01/30 00:34:17 wmtan Exp $
 //
 //
 
@@ -37,8 +38,6 @@
 #include "FWCore/MessageLogger/interface/MessageLogger.h"
 
 #include "FWCore/Utilities/interface/Algorithms.h"
-#include "FWCore/ParameterSet/interface/ConfigurationDescriptions.h"
-#include "FWCore/ParameterSet/interface/ParameterSetDescription.h"
 
 //
 // class declarations
@@ -61,26 +60,26 @@ std::string formatClassName(const std::string& iName) {
 static const char* kNameValueSep = "=";
 ///convert the object information to the correct type and print it
 template<typename T>
-static void doPrint(const std::string&iName,const Reflex::Object& iObject, const std::string& iIndent) {
+static void doPrint(const std::string&iName,const ROOT::Reflex::Object& iObject, const std::string& iIndent) {
   edm::LogAbsolute("EventContent") << iIndent<< iName <<kNameValueSep<<*reinterpret_cast<T*>(iObject.Address());//<<"\n";
 }
 
 template<>
-static void doPrint<char>(const std::string&iName,const Reflex::Object& iObject, const std::string& iIndent) {
+static void doPrint<char>(const std::string&iName,const ROOT::Reflex::Object& iObject, const std::string& iIndent) {
   edm::LogAbsolute("EventContent") << iIndent<< iName <<kNameValueSep<<static_cast<int>(*reinterpret_cast<char*>(iObject.Address()));//<<"\n";
 }
 
 template<>
-static void doPrint<unsigned char>(const std::string&iName,const Reflex::Object& iObject, const std::string& iIndent) {
+static void doPrint<unsigned char>(const std::string&iName,const ROOT::Reflex::Object& iObject, const std::string& iIndent) {
   edm::LogAbsolute("EventContent") << iIndent<< iName <<kNameValueSep<<static_cast<unsigned int>(*reinterpret_cast<unsigned char*>(iObject.Address()));//<<"\n";
 }
 
 template<>
-static void doPrint<bool>(const std::string&iName,const Reflex::Object& iObject, const std::string& iIndent) {
+static void doPrint<bool>(const std::string&iName,const ROOT::Reflex::Object& iObject, const std::string& iIndent) {
   edm::LogAbsolute("EventContent") << iIndent<< iName <<kNameValueSep<<((*reinterpret_cast<bool*>(iObject.Address()))?"true":"false");//<<"\n";
 }
 
-typedef void(*FunctionType)(const std::string&,const Reflex::Object&, const std::string&);
+typedef void(*FunctionType)(const std::string&,const ROOT::Reflex::Object&, const std::string&);
 typedef std::map<std::string, FunctionType> TypeToPrintMap;
 
 template<typename T>
@@ -89,9 +88,9 @@ static void addToMap(TypeToPrintMap& iMap) {
 }
 
 static bool printAsBuiltin(const std::string& iName,
-                           const Reflex::Object iObject,
+                           const ROOT::Reflex::Object iObject,
                            const std::string& iIndent) {
-   typedef void(*FunctionType)(const std::string&,const Reflex::Object&, const std::string&);
+   typedef void(*FunctionType)(const std::string&,const ROOT::Reflex::Object&, const std::string&);
    typedef std::map<std::string, FunctionType> TypeToPrintMap;
    static TypeToPrintMap s_map;
    static bool isFirst = true;
@@ -119,21 +118,22 @@ static bool printAsBuiltin(const std::string& iName,
 }
 
 static bool printAsContainer(const std::string& iName,
-                             const Reflex::Object& iObject,
+                             const ROOT::Reflex::Object& iObject,
                              const std::string& iIndent,
                              const std::string& iIndentDelta);
 
 static void printObject(const std::string& iName,
-                        const Reflex::Object& iObject,
+                        const ROOT::Reflex::Object& iObject,
                         const std::string& iIndent,
                         const std::string& iIndentDelta) {
+   using namespace ROOT::Reflex;
    std::string printName = iName;
-   Reflex::Object objectToPrint = iObject;
+   Object objectToPrint = iObject;
    std::string indent(iIndent);
    if(iObject.TypeOf().IsPointer()) {
      edm::LogAbsolute("EventContent")<<iIndent<<iName<<kNameValueSep<<formatClassName(iObject.TypeOf().Name())<<std::hex<<iObject.Address()<<std::dec;//<<"\n";
-      Reflex::Type pointedType = iObject.TypeOf().ToType();
-      if(Reflex::Type::ByName("void") == pointedType ||
+      Type pointedType = iObject.TypeOf().ToType();
+      if(ROOT::Reflex::Type::ByName("void") == pointedType ||
          pointedType.IsPointer() ||
          iObject.Address() == 0) {
          return;
@@ -141,9 +141,9 @@ static void printObject(const std::string& iName,
       return;
        
       //have the code that follows print the contents of the data to which the pointer points
-      objectToPrint = Reflex::Object(pointedType, iObject.Address());
+      objectToPrint = ROOT::Reflex::Object(pointedType, iObject.Address());
       //try to convert it to its actual type (assuming the original type was a base class)
-      objectToPrint = Reflex::Object(objectToPrint.CastObject(objectToPrint.DynamicType()));
+      objectToPrint = ROOT::Reflex::Object(objectToPrint.CastObject(objectToPrint.DynamicType()));
       printName = std::string("*")+iName;
       indent +=iIndentDelta;
    }
@@ -154,7 +154,7 @@ static void printObject(const std::string& iName,
 
    //see if we are dealing with a typedef
    if(objectToPrint.TypeOf().IsTypedef()) {
-     objectToPrint = Reflex::Object(objectToPrint.TypeOf().ToType(),objectToPrint.Address());
+     objectToPrint = Object(objectToPrint.TypeOf().ToType(),objectToPrint.Address());
    } 
    if(printAsBuiltin(printName,objectToPrint,indent)) {
       return;
@@ -166,7 +166,7 @@ static void printObject(const std::string& iName,
    edm::LogAbsolute("EventContent")<<indent<<printName<<" "<<formatClassName(typeName);//<<"\n";
    indent+=iIndentDelta;
    //print all the data members
-   for(Reflex::Member_Iterator itMember = objectToPrint.TypeOf().DataMember_Begin();
+   for(ROOT::Reflex::Member_Iterator itMember = objectToPrint.TypeOf().DataMember_Begin();
        itMember != objectToPrint.TypeOf().DataMember_End();
        ++itMember) {
       //edm::LogAbsolute("EventContent") <<"     debug "<<itMember->Name()<<" "<<itMember->TypeOf().Name()<<"\n";
@@ -183,19 +183,16 @@ static void printObject(const std::string& iName,
 }
 
 static bool printAsContainer(const std::string& iName,
-                             const Reflex::Object& iObject,
+                             const ROOT::Reflex::Object& iObject,
                              const std::string& iIndent,
                              const std::string& iIndentDelta) {
-   Reflex::Object sizeObj;
+   using namespace ROOT::Reflex;
+   Object sizeObj;
    try {
-#if ROOT_VERSION_CODE <= ROOT_VERSION(5,19,0)
       sizeObj = iObject.Invoke("size");
-#else
-      iObject.Invoke("size", &sizeObj);
-#endif
       assert(sizeObj.TypeOf().TypeInfo() == typeid(size_t));
       size_t size = *reinterpret_cast<size_t*>(sizeObj.Address());
-      Reflex::Member atMember;
+      Member atMember;
       try {
          atMember = iObject.TypeOf().MemberByName("at");
       } catch(const std::exception& x) {
@@ -203,16 +200,12 @@ static bool printAsContainer(const std::string& iName,
          return false;
       }
       edm::LogAbsolute("EventContent") <<iIndent<<iName<<kNameValueSep<<"[size="<<size<<"]";//"\n";
-      Reflex::Object contained;
+      Object contained;
       std::string indexIndent=iIndent+iIndentDelta;
       for(size_t index = 0; index != size; ++index) {
          std::ostringstream sizeS;
          sizeS << "["<<index<<"]";
-#if ROOT_VERSION_CODE <= ROOT_VERSION(5,19,0)
-         contained = atMember.Invoke(iObject, Reflex::Tools::MakeVector(static_cast<void*>(&index)));
-#else
-         atMember.Invoke(iObject, &contained, Reflex::Tools::MakeVector(static_cast<void*>(&index)));
-#endif
+         contained = atMember.Invoke(iObject, Tools::MakeVector(static_cast<void*>(&index)));
          //edm::LogAbsolute("EventContent") <<"invoked 'at'"<<std::endl;
          try {
             printObject(sizeS.str(),contained,indexIndent,iIndentDelta);
@@ -254,7 +247,7 @@ static void printObject(const edm::Event& iEvent,
 //
 EventContentAnalyzer::EventContentAnalyzer(const edm::ParameterSet& iConfig) :
   indentation_(iConfig.getUntrackedParameter("indentation",std::string("++"))),
-  verboseIndentation_(iConfig.getUntrackedParameter("verboseIndentation",std::string("  "))),
+  verboseIndentation_(iConfig.getUntrackedParameter("verboseIndention",std::string("  "))),
   moduleLabels_(iConfig.getUntrackedParameter("verboseForModuleLabels",std::vector<std::string>())),
   verbose_(iConfig.getUntrackedParameter("verbose",false) || moduleLabels_.size()>0),
   getModuleLabels_(iConfig.getUntrackedParameter("getDataForModuleLabels",std::vector<std::string>())),
@@ -378,24 +371,4 @@ EventContentAnalyzer::endJob()
 // int k = 137;
 // std::string ktext = boost::lexical_cast<std::string>(k);
 // std::cout << "\nInteger " << k << " expressed as a string is |" << ktext << "|" << std::endl;
-}
-
-void
-EventContentAnalyzer::fillDescriptions(edm::ConfigurationDescriptions & descriptions) {
-
-   edm::ParameterSetDescription desc;
-
-   std::string defaultString("++");
-   desc.addOptionalUntracked<std::string>("indentation", defaultString);
-
-   defaultString = "  ";
-   desc.addOptionalUntracked<std::string>("verboseIndentation", defaultString);
-
-   std::vector<std::string> defaultVString;
-   desc.addOptionalUntracked<std::vector<std::string> >("verboseForModuleLabels", defaultVString);
-   desc.addOptionalUntracked<bool>("verbose", false);
-   desc.addOptionalUntracked<std::vector<std::string> >("getDataForModuleLabels", defaultVString);
-   desc.addOptionalUntracked<bool>("getData", false);
-
-   descriptions.add("printContent", desc);
 }
