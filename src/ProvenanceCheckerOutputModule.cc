@@ -8,6 +8,7 @@
 //
 // Original Author:  Chris Jones
 //         Created:  Thu Sep 11 19:24:13 EDT 2008
+// $Id$
 //
 
 // system include files
@@ -76,19 +77,19 @@ namespace edm {
 //
 // member functions
 //
-   static void markAncestors(const ProductProvenance& iInfo,
+   static void markAncestors(const EventEntryInfo& iInfo,
                              const BranchMapper& iMapper,
                              std::map<BranchID,bool>& oMap, 
                              std::set<BranchID>& oMapperMissing) {
-      for(std::vector<BranchID>::const_iterator it = iInfo.parentage().parents().begin(),
-          itEnd = iInfo.parentage().parents().end();
+      for(std::vector<BranchID>::const_iterator it = iInfo.entryDescription().parents().begin(),
+          itEnd = iInfo.entryDescription().parents().end();
           it != itEnd;
           ++it) {
          //Don't look for parents if we've previously looked at the parents
          if(oMap.find(*it) == oMap.end()) {
             //use side effect of calling operator[] which is if the item isn't there it will add it as 'false'
             oMap[*it];
-            boost::shared_ptr<ProductProvenance> pInfo = iMapper.branchIDToProvenance(*it);
+            boost::shared_ptr<EventEntryInfo> pInfo = iMapper.branchToEntryInfo(*it);
             if(pInfo.get()) {
                markAncestors(*pInfo,iMapper,oMap,oMapperMissing);
             } else {
@@ -100,29 +101,29 @@ namespace edm {
    
     void 
    ProvenanceCheckerOutputModule::write(EventPrincipal const& e) {
-      //check ProductProvenance's parents to see if they are in the ProductProvenance list
+      //check EventEntryInfo's parents to see if they are in the EventEntryInfo list
       boost::shared_ptr<BranchMapper> mapperPtr= e.branchMapperPtr();
                        
       std::map<BranchID,bool> seenParentInPrincipal;
       std::set<BranchID> missingFromMapper;
-      std::set<BranchID> missingProductProvenance;
+      std::set<BranchID> missingEventEntryInfo;
 
       for(EventPrincipal::const_iterator it = e.begin(), itEnd = e.end();
           it != itEnd;
           ++it) {
          if(it->second && !it->second->productUnavailable()) {
-            //This call seems to have a side effect of filling the 'ProductProvenance' in the Group
-            OutputHandle const oh = e.getForOutput(it->first, false);
+            //This call seems to have a side effect of filling the 'EventEntryInfo' in the Group
+            OutputHandle<EventEntryInfo> const oh = e.getForOutput<EventEntryInfo>(it->first, false);
 
-            if(not it->second->productProvenancePtr().get() ) {
-               missingProductProvenance.insert(it->first);
+            if(not it->second->entryInfoPtr().get() ) {
+               missingEventEntryInfo.insert(it->first);
                continue;
             }
-            boost::shared_ptr<ProductProvenance> pInfo = mapperPtr->branchIDToProvenance(it->first);
+            boost::shared_ptr<EventEntryInfo> pInfo = mapperPtr->branchToEntryInfo(it->first);
             if(!pInfo.get()) {
                missingFromMapper.insert(it->first);
             }
-            markAncestors(*(it->second->productProvenancePtr()),*mapperPtr,seenParentInPrincipal, missingFromMapper);
+            markAncestors(*(it->second->entryInfoPtr()),*mapperPtr,seenParentInPrincipal, missingFromMapper);
          }
          seenParentInPrincipal[it->first]=true;
       }
@@ -169,9 +170,9 @@ namespace edm {
          }
       }
       
-      if(missingProductProvenance.size()) {
-         edm::LogError("ProvenanceChecker") <<"The Groups for the following BranchIDs have no ProductProvenance\n";
-         for(std::set<BranchID>::iterator it=missingProductProvenance.begin(), itEnd = missingProductProvenance.end();
+      if(missingEventEntryInfo.size()) {
+         edm::LogError("ProvenanceChecker") <<"The Groups for the following BranchIDs have no EventEntryInfo\n";
+         for(std::set<BranchID>::iterator it=missingEventEntryInfo.begin(), itEnd = missingEventEntryInfo.end();
              it!=itEnd;
              ++it) {
             edm::LogProblem("ProvenanceChecker")<<*it;
@@ -188,14 +189,14 @@ namespace edm {
       }
       
       
-      if(missingFromMapper.size() or missingFromPrincipal.size() or missingProductProvenance.size() or missingFromReg.size()) {
+      if(missingFromMapper.size() or missingFromPrincipal.size() or missingEventEntryInfo.size() or missingFromReg.size()) {
          throw cms::Exception("ProvenanceError")
          <<(missingFromMapper.size() or missingFromPrincipal.size()?"Having missing ancestors": "")
          <<(missingFromMapper.size()?" from BranchMapper":"")
          <<(missingFromMapper.size() and missingFromPrincipal.size()?" and":"")
          <<(missingFromPrincipal.size()?" from EventPrincipal":"")
          <<(missingFromMapper.size() or missingFromPrincipal.size()?".\n":"")
-         <<(missingProductProvenance.size()?" Have missing ProductProvenance's from Group in EventPrincipal.\n":"")
+         <<(missingEventEntryInfo.size()?" Have missing EventEntryInfo's from Group in EventPrincipal.\n":"")
          <<(missingFromReg.size()?" Have missing info from ProductRegistry.\n":"");
       }
    }
